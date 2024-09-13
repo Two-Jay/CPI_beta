@@ -1,5 +1,7 @@
 import streamlit as st
 import openai
+import json
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception
 from utils import read_file
 
 # OpenAI API 키 설정 (실제 사용 시 환경 변수로 관리하는 것이 좋습니다)
@@ -34,7 +36,8 @@ class Inferencer:
         )
         return response.choices[0].message.content
     
-    def inference_with_memory(self, user_input : str) -> str:
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2), retry=retry_if_exception(lambda e: "response" not in dir(e)))
+    def inference_chat(self, user_input : str) -> str:
         memory = self.memory.get_memory()
         memory.append({"role": "user", "content": user_input})
         temp = [{"role" : "system", "content" : self.system_prompt}] + memory
@@ -44,8 +47,15 @@ class Inferencer:
             temperature=0.56,
             max_tokens=350
         )
-        self.memory.add_memory("assistant", response.choices[0].message.content)
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+
+        if "response" not in dir(response):
+            raise Exception("response not in dir(response)")
+        if '```json' in content:
+            content = content.replace('```json\n', '').replace('\n```', '')
+            content = json.loads(content)
+        self.memory.add_memory("assistant", content["response"])
+        return content
 
 
 def inference(user_input : str, me) -> str :
@@ -73,13 +83,12 @@ def run_chat(inferencer : Inferencer):
         c1,c2 = st.columns([0.8, 0.2])
         with c1:
             if prompt := st.chat_input("What is up?"):
-                response = inferencer.inference_with_memory(prompt)
+                response = inferencer.inference_chat(prompt)
 
         with c2:
             if clicked := st.button("Clear"):
                 reset()
                 st.rerun()
-
 
     with history_container:
         display_history(inferencer.memory, history_container)
