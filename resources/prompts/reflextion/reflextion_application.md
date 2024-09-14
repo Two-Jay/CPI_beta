@@ -8,7 +8,7 @@
 ```
 
 ## 피드백
-``₩
+```
 <reflextion_result>
 ```
 
