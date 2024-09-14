@@ -165,6 +165,8 @@ def display_panel():
         if st.session_state.summary is not None:
             st.session_state.iteration_sections = [f"Iteration {i+1}" for i in range(st.session_state.iteration_turn_count)]
             st.session_state.generation_started = True
+            generate_page()
+            
 
 def main_page():
     st.title("Conversation Prompt Generator_v0.1")
@@ -194,29 +196,94 @@ def init():
     if "enhancer" not in st.session_state:
         st.session_state.enhancer = PromptEnhancer(st.session_state.memory, oai_client, read_file("resources/prompts/prompt_requirement_enhancing.md"))
 
-def run_iteration(iteration_data):
-    with st.container(height=300):
-        st.write(iteration_data["resource"])
+antagonist_prompt = read_file("resources/prompts/dialog/antagonist.md")
+protaganist_prompt = read_file("resources/prompts/dialog/protagonist.md")
+extraction_prompt = read_file("resources/prompts/dialog/extraction_customer_action.md")
+
+requirement_extention_prompt = read_file("resources/prompts/process/requirement_extention.md")
+output_input_definition_prompt = read_file("resources/prompts/process/output_input_definition.md")
+draft_prompt = read_file("resources/prompts/process/draft_prompt.md")
+
+reflextion_making_prompt = read_file("resources/prompts/reflextion/reflextion_making.md")
+reflextion_application_prompt = read_file("resources/prompts/reflextion/reflextion_application.md")
+reflextion_dialog_prompt = read_file("resources/prompts/reflextion/reflextion_dialog.md")
+
+
+def single_inference(prompt : str, temperature : float = 0.56, max_token : int = 1024) -> str:
+    response = oai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        temperature=temperature,
+        max_tokens=max_token
+    )
+    return response.choices[0].message.content
+
+from typing import List, Dict
+
+def reflextion(prompt : str, dialog_history : List[Dict[str, str]]) -> str:
+    reflextion_prompt = str(reflextion_dialog_prompt)
+    reflextion_prompt = reflextion_prompt.replace("<dialog_history>", str(dialog_history))
+    reflextion_prompt = reflextion_prompt.replace("<prompt>", str(prompt))
+    reflextion_prompt = single_inference(reflextion_prompt)
+    return reflextion_prompt
+
+def run_case(
+    data : dict,
+    is_singleturn : bool = False,
+    test_dialog_turn_count : int = 1
+) -> dict:
+    resource = data["resource"]
+    prompt_base_1 = str(requirement_extention_prompt)
+    prompt_base_2 = str(output_input_definition_prompt)
+    draft_prompt = str(draft_prompt)
+
+    prompt_base_1 = prompt_base_1.replace("<resource>", str(resource), temperature=0.56, max_token=1500)
+    prompt_base_2 = prompt_base_2.replace("<resource>", str(resource), temperature=0.4, max_token=1500)
+
+    prompt_base_1 = single_inference(prompt_base_1)
+    prompt_base_2 = single_inference(prompt_base_2)
+    draft_prompt = draft_prompt.replace("<prompt_base_1>", prompt_base_1)
+    draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)        
+
+    return {
+        "prompt" : draft_prompt,
+        "prompt_base_1" : prompt_base_1,
+        "prompt_base_2" : prompt_base_2,
+        "reflextion" : None
+    }
+    
+
+def run_iterations(iteration_list, data):
+    data["prompt"] = ""
+    data["prompt_base_1"] = ""
+    data["prompt_base_2"] = ""
+    data["reflextion"] = ""
+    for section in iteration_list:
+        with section:
+            data = run_case(
+                data,
+                is_singleturn=data["resource"].turn_count == 1,
+                test_dialog_turn_count=st.session_state.test_dialog_turn_count
+            )
+            st.write(data)
+    st.write(data)
 
 def generate_page():
-    if st.session_state.summary is None and len(st.session_state.iteration_sections) == 0:
+    if st.session_state.summary is None:
         st.write("프롬프트 생성 기반 정보가 없습니다.")
     else:
         section_list = st.session_state.iteration_sections
         section_list = list(st.tabs(section_list))
-        iteration_data = {
+        iteration_data  = {
             "resource" : st.session_state.summary
         }
         if len(st.session_state.iteration_sections) > 0 and st.session_state.generation_started:
-            for section in section_list:
-                run_iteration(iteration_data)
+            run_iterations(section_list, iteration_data)
         else:
             st.write("아직 생성이 시작되지 않았습니다.")
 
 if __name__ == "__main__":
     init()
-    tab = st.tabs(["Chat", "Generate"])
-    with tab[0]:
-        main_page()
-    with tab[1]:
-        generate_page()
+    main_page()

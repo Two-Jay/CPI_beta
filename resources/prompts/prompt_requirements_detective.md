@@ -29,6 +29,7 @@ If you have obtained all the roles and the above information, set is_end to True
 If additional questions are needed, set is_end to False.
 
 Don't ask all your questions at once, ask them one by one.
+If you're asked a question to be a user, don't respond, just keep asking what you want to know.
 
 ### Output
 - Response in Korean
