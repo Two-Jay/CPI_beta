@@ -76,8 +76,8 @@ def run_case(
     prompt_base_1 = prompt_base_1.replace("<resource>", str(resource))
     prompt_base_2 = prompt_base_2.replace("<resource>", str(resource))
 
-    prompt_base_1 = single_inference(prompt_base_1, temperature=0.56, max_token=1500, output_format=PromptOutput)
-    prompt_base_2 = single_inference(prompt_base_2, temperature=0.4, max_token=1500, output_format=PromptOutput)
+    prompt_base_1 = single_inference(prompt_base_1, temperature=0.56, max_token=1500)
+    prompt_base_2 = single_inference(prompt_base_2, temperature=0.4, max_token=1500)
     draft_prompt = draft_prompt.replace("<prompt_base_1>", prompt_base_1)
     draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)        
 
@@ -196,7 +196,7 @@ def run_chat(inferencer : Inferencer):
     history_container = st.container(height=700)
     input_container = st.container(height=120)
     if len(inferencer.memory.get_memory()) == 0:
-        inferencer.memory.add_memory("assistant", "안녕하세요. 저는 CPI입니다. 어떤 프롬프트를 만들기를 원하시나요? ")
+        inferencer.memory.add_memory("assistant", "안녕하세요. 저는 CPG입니다. 어떤 프롬프트를 만들기를 원하시나요? ")
 
     with input_container:
         c1,c2 = st.columns([0.8, 0.2])
