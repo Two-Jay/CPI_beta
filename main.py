@@ -53,7 +53,7 @@ def reflextion(prompt : str, summary : PromptRequirements, temperature : float =
 
     return result
 
-def apply_reflextion(prompt : str, reflextion_result : str, temperature : float = 0.40, max_token : int = 3000) -> str:
+def apply_reflextion(prompt : str, reflextion_result : str, temperature : float = 0.80, max_token : int = 3000) -> str:
 
     reflextion_prompt = str(reflextion_application_prompt)
     reflextion_prompt = reflextion_prompt.replace("<reflextion_target>", str(prompt))
