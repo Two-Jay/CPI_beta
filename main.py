@@ -78,11 +78,15 @@ def run_case(
 
     prompt_base_1 = single_inference(prompt_base_1, temperature=0.56, max_token=1500)
     prompt_base_2 = single_inference(prompt_base_2, temperature=0.4, max_token=1500)
+    if "```" in prompt_base_1:
+        prompt_base_1 = prompt_base_1.replace("```", "")
+    if "```" in prompt_base_2:
+        prompt_base_2 = prompt_base_2.replace("```", "")
     draft_prompt = draft_prompt.replace("<prompt_base_1>", prompt_base_1)
-    draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)        
+    draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)
 
     reflextion_result = reflextion(draft_prompt, resource, temperature=0.40, max_token=3000)
-    refreshed = apply_reflextion(draft_prompt, reflextion_result, temperature=0.40, max_token=3000)
+    refreshed = apply_reflextion(draft_prompt, reflextion_result, temperature=0.40, max_token=4000)
 
     return {
         "prompt" : draft_prompt,
