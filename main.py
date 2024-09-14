@@ -49,18 +49,18 @@ def reflextion(prompt : str, summary : PromptRequirements, temperature : float =
     reflextion_prompt = str(reflextion_making_prompt)
     reflextion_prompt = reflextion_prompt.replace("<summary>", str(summary))
     reflextion_prompt = reflextion_prompt.replace("<reflextion_target>", str(prompt))
-    reflextion_prompt = single_inference(reflextion_prompt, temperature=temperature, max_token=max_token)
+    result = single_inference(reflextion_prompt, temperature=temperature, max_token=max_token)
 
-    return reflextion_prompt
+    return result
 
 def apply_reflextion(prompt : str, reflextion_result : str, temperature : float = 0.40, max_token : int = 3000) -> str:
 
     reflextion_prompt = str(reflextion_application_prompt)
     reflextion_prompt = reflextion_prompt.replace("<reflextion_target>", str(prompt))
     reflextion_prompt = reflextion_prompt.replace("<reflextion_result>", str(reflextion_result))
-    reflextion_prompt = single_inference(reflextion_prompt, temperature=temperature, max_token=max_token)
+    result = single_inference(reflextion_prompt, temperature=temperature, max_token=max_token)
 
-    return reflextion_prompt
+    return result
 
 def run_case(
     data : dict
