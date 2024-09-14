@@ -91,7 +91,7 @@ def run_case(
     return {
         "prompt" : draft_prompt,
         "reflextion" : reflextion_result,
-        "refreshed" : refreshed
+        # "refreshed" : refreshed
     }
     
 
