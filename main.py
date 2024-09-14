@@ -139,6 +139,7 @@ class Inferencer:
             model="gpt-4o-mini",
             messages=temp,
             response_format=DetectivePrompt,
+            temperature=0.6,
         )
         content = response.choices[0].message.parsed
         print(content)
@@ -161,7 +162,8 @@ class PromptRequirementsSummarizer:
             messages=[
                 {"role": "user", "content": str(history)}
             ],
-            response_format=PromptRequirementsSummary
+            response_format=PromptRequirementsSummary,
+            temperature=0.5,
         )
         return response.choices[0].message.parsed
 
@@ -220,7 +222,9 @@ class PromptEnhancer:
             messages=[
                 {"role": "system", "content": temp_system_prompt}
             ],
-            response_format=PromptRequirements
+            response_format=PromptRequirements,
+            temperature=0.56,
+            max_tokens=1500,
         )
         return response.choices[0].message.parsed
 
