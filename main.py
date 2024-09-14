@@ -22,15 +22,25 @@ reflextion_application_prompt = read_file("resources/prompts/reflextion/reflexti
 # reflextion_dialog_prompt = read_file("resources/prompts/reflextion/reflextion_dialog.md")
 
 
-def single_inference(prompt : str, temperature : float = 0.56, max_token : int = 1024) -> str:
-    response = oai_client.chat.completions.create(
-        model="gpt-4o-mini",
+def single_inference(prompt : str, temperature : float = 0.56, max_token : int = 1024, output_format = None) -> str:
+    if output_format is None:
+        response = oai_client.chat.completions.create(
+            model="gpt-4o-mini",
         messages=[
             {"role": "user", "content": prompt}
         ],
         temperature=temperature,
-        max_tokens=max_token
-    )
+            max_tokens=max_token
+        )
+    else:
+        response = oai_client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            response_format=output_format,
+            temperature=temperature,
+        )
     return response.choices[0].message.content
 
 from typing import List, Dict
@@ -66,8 +76,8 @@ def run_case(
     prompt_base_1 = prompt_base_1.replace("<resource>", str(resource))
     prompt_base_2 = prompt_base_2.replace("<resource>", str(resource))
 
-    prompt_base_1 = single_inference(prompt_base_1, temperature=0.56, max_token=1500)
-    prompt_base_2 = single_inference(prompt_base_2, temperature=0.4, max_token=1500)
+    prompt_base_1 = single_inference(prompt_base_1, temperature=0.56, max_token=1500, output_format=PromptOutput)
+    prompt_base_2 = single_inference(prompt_base_2, temperature=0.4, max_token=1500, output_format=PromptOutput)
     draft_prompt = draft_prompt.replace("<prompt_base_1>", prompt_base_1)
     draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)        
 

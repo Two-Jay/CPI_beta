@@ -19,3 +19,5 @@ class PromptRequirementsSummary(BaseModel):
     summary : str = Field(..., description="요약 내용")
     requirements : PromptRequirements = Field(..., description="요약된 프롬프트의 요구사항")
 
+class PromptOutput(BaseModel):
+    output : str = Field(..., description="프롬프트의 출력 내용")
