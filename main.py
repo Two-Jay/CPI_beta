@@ -77,7 +77,7 @@ def run_case(
     return {
         "prompt" : draft_prompt,
         "reflextion" : reflextion_result,
-        "refreshed" : refreshed
+        # "refreshed" : refreshed
     }
     
 
@@ -215,6 +215,7 @@ class PromptEnhancer:
         self.client = client
         self.system_prompt = system_prompt
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(0.2), retry=retry_if_exception_type(Exception))
     def inference(self, summary : PromptRequirements) -> str:
         temp_system_prompt = self.system_prompt.replace("<user_dialog_summary>", str(summary.requirements))
         response = self.client.beta.chat.completions.parse(
