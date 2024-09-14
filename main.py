@@ -86,7 +86,7 @@ def run_case(
     draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)
 
     reflextion_result = reflextion(draft_prompt, resource, temperature=0.40, max_token=3000)
-    refreshed = apply_reflextion(draft_prompt, reflextion_result, temperature=0.40, max_token=4000)
+    refreshed = apply_reflextion(draft_prompt, reflextion_result, temperature=0.80, max_token=4000)
 
     return {
         "prompt" : draft_prompt,
