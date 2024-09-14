@@ -9,6 +9,99 @@ from models import *
 api_key = st.secrets["OPENAI_API_KEY"]
 oai_client = openai.OpenAI(api_key=api_key)
 
+# antagonist_prompt = read_file("resources/prompts/dialog/antagonist.md")
+# protaganist_prompt = read_file("resources/prompts/dialog/protagonist.md")
+# extraction_prompt = read_file("resources/prompts/dialog/extraction_customer_action.md")
+
+requirement_extention_prompt = read_file("resources/prompts/process/requirement_extention.md")
+output_input_definition_prompt = read_file("resources/prompts/process/output_input_definition.md")
+draft_prompt = read_file("resources/prompts/process/draft_prompt.md")
+
+reflextion_making_prompt = read_file("resources/prompts/reflextion/reflextion_making.md")
+reflextion_application_prompt = read_file("resources/prompts/reflextion/reflextion_application.md")
+# reflextion_dialog_prompt = read_file("resources/prompts/reflextion/reflextion_dialog.md")
+
+
+def single_inference(prompt : str, temperature : float = 0.56, max_token : int = 1024) -> str:
+    response = oai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        temperature=temperature,
+        max_tokens=max_token
+    )
+    return response.choices[0].message.content
+
+from typing import List, Dict
+
+def reflextion(prompt : str, summary : PromptRequirements, temperature : float = 0.56, max_token : int = 3000) -> str:
+    reflextion_prompt = str(reflextion_making_prompt)
+    reflextion_prompt = reflextion_prompt.replace("<summary>", str(summary))
+    reflextion_prompt = reflextion_prompt.replace("<reflextion_target>", str(prompt))
+    reflextion_prompt = single_inference(reflextion_prompt, temperature=temperature, max_token=max_token)
+
+    return reflextion_prompt
+
+def apply_reflextion(prompt : str, reflextion_result : str, temperature : float = 0.40, max_token : int = 3000) -> str:
+
+    reflextion_prompt = str(reflextion_application_prompt)
+    reflextion_prompt = reflextion_prompt.replace("<reflextion_target>", str(prompt))
+    reflextion_prompt = reflextion_prompt.replace("<reflextion_result>", str(reflextion_result))
+    reflextion_prompt = single_inference(reflextion_prompt, temperature=temperature, max_token=max_token)
+
+    return reflextion_prompt
+
+def run_case(
+    data : dict
+) -> dict:
+    resource = data["resource"]
+    requirement_extention_prompt = read_file("resources/prompts/process/requirement_extention.md")
+    output_input_definition_prompt = read_file("resources/prompts/process/output_input_definition.md")
+    draft_prompt = read_file("resources/prompts/process/draft_prompt.md")
+    prompt_base_1 = str(requirement_extention_prompt)
+    prompt_base_2 = str(output_input_definition_prompt)
+    draft_prompt = str(draft_prompt)
+
+    prompt_base_1 = prompt_base_1.replace("<resource>", str(resource))
+    prompt_base_2 = prompt_base_2.replace("<resource>", str(resource))
+
+    prompt_base_1 = single_inference(prompt_base_1, temperature=0.56, max_token=1500)
+    prompt_base_2 = single_inference(prompt_base_2, temperature=0.4, max_token=1500)
+    draft_prompt = draft_prompt.replace("<prompt_base_1>", prompt_base_1)
+    draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)        
+
+    reflextion_result = reflextion(draft_prompt, resource, temperature=0.40, max_token=3000)
+    refreshed = apply_reflextion(draft_prompt, reflextion_result, temperature=0.40, max_token=3000)
+
+    return {
+        "prompt" : draft_prompt,
+        "reflextion" : reflextion_result,
+        "refreshed" : refreshed
+    }
+    
+
+def run_iterations(data, iteration_list, summary, section_list):
+    data["prompt"] = ""
+    data["prompt_base_1"] = ""
+    data["prompt_base_2"] = ""
+    data["reflextion"] = ""
+    data = run_case(
+        data
+    )
+    st.write(data)
+
+    
+def generate_page(summary : PromptRequirements, iteration_list : List[str]):
+    st.title("Generate Section")
+    st.write(summary)
+    section_list = st.tabs(iteration_list)
+    data = {
+        "resource" : summary
+    }
+    run_iterations(data, iteration_list, summary, section_list)
+
+
 class Memory:
     def __init__(self):
         self.memory = []
@@ -101,7 +194,6 @@ def run_chat(inferencer : Inferencer):
                 if response.is_end:
                     print("끝났어요!")
                     summarized = st.session_state.summarizer.inference(inferencer.memory.get_memory())
-                    print(summarized)
                     st.session_state.summary = summarized
 
         with c2:
@@ -111,6 +203,8 @@ def run_chat(inferencer : Inferencer):
 
     with history_container:
         display_history(inferencer.memory, history_container)
+
+    return st.session_state.summary if st.session_state.summary is not None else None
 
 
 class PromptEnhancer:
@@ -160,21 +254,18 @@ def display_panel():
                     st.write(f"{key} : {value}")
         else:
             st.write("프롬프트 생성 기반 정보가 없습니다.")
-    
-    if generate_button := st.button("Generate"):
-        if st.session_state.summary is not None:
-            st.session_state.iteration_sections = [f"Iteration {i+1}" for i in range(st.session_state.iteration_turn_count)]
-            st.session_state.generation_started = True
-            generate_page()
-            
+    return st.session_state.summary if st.session_state.summary is not None else None
 
 def main_page():
     st.title("Conversation Prompt Generator_v0.1")
     col1, col2 = st.columns([0.8, 0.2])
     with col1:
-        run_chat(st.session_state.inferencer)
+        summary = run_chat(st.session_state.inferencer)
     with col2:
-        display_panel()
+        summary = display_panel()
+    if summary is not None:
+        generate_page(summary, st.session_state.iteration_sections)
+
 
 def reset():
     st.session_state.memory.clear_memory()
@@ -195,94 +286,6 @@ def init():
         st.session_state.summarizer = PromptRequirementsSummarizer(st.session_state.memory, oai_client, read_file("resources/prompts/prompt_requirements_summary.md"))
     if "enhancer" not in st.session_state:
         st.session_state.enhancer = PromptEnhancer(st.session_state.memory, oai_client, read_file("resources/prompts/prompt_requirement_enhancing.md"))
-
-antagonist_prompt = read_file("resources/prompts/dialog/antagonist.md")
-protaganist_prompt = read_file("resources/prompts/dialog/protagonist.md")
-extraction_prompt = read_file("resources/prompts/dialog/extraction_customer_action.md")
-
-requirement_extention_prompt = read_file("resources/prompts/process/requirement_extention.md")
-output_input_definition_prompt = read_file("resources/prompts/process/output_input_definition.md")
-draft_prompt = read_file("resources/prompts/process/draft_prompt.md")
-
-reflextion_making_prompt = read_file("resources/prompts/reflextion/reflextion_making.md")
-reflextion_application_prompt = read_file("resources/prompts/reflextion/reflextion_application.md")
-reflextion_dialog_prompt = read_file("resources/prompts/reflextion/reflextion_dialog.md")
-
-
-def single_inference(prompt : str, temperature : float = 0.56, max_token : int = 1024) -> str:
-    response = oai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-        temperature=temperature,
-        max_tokens=max_token
-    )
-    return response.choices[0].message.content
-
-from typing import List, Dict
-
-def reflextion(prompt : str, dialog_history : List[Dict[str, str]]) -> str:
-    reflextion_prompt = str(reflextion_dialog_prompt)
-    reflextion_prompt = reflextion_prompt.replace("<dialog_history>", str(dialog_history))
-    reflextion_prompt = reflextion_prompt.replace("<prompt>", str(prompt))
-    reflextion_prompt = single_inference(reflextion_prompt)
-    return reflextion_prompt
-
-def run_case(
-    data : dict,
-    is_singleturn : bool = False,
-    test_dialog_turn_count : int = 1
-) -> dict:
-    resource = data["resource"]
-    prompt_base_1 = str(requirement_extention_prompt)
-    prompt_base_2 = str(output_input_definition_prompt)
-    draft_prompt = str(draft_prompt)
-
-    prompt_base_1 = prompt_base_1.replace("<resource>", str(resource), temperature=0.56, max_token=1500)
-    prompt_base_2 = prompt_base_2.replace("<resource>", str(resource), temperature=0.4, max_token=1500)
-
-    prompt_base_1 = single_inference(prompt_base_1)
-    prompt_base_2 = single_inference(prompt_base_2)
-    draft_prompt = draft_prompt.replace("<prompt_base_1>", prompt_base_1)
-    draft_prompt = draft_prompt.replace("<prompt_base_2>", prompt_base_2)        
-
-    return {
-        "prompt" : draft_prompt,
-        "prompt_base_1" : prompt_base_1,
-        "prompt_base_2" : prompt_base_2,
-        "reflextion" : None
-    }
-    
-
-def run_iterations(iteration_list, data):
-    data["prompt"] = ""
-    data["prompt_base_1"] = ""
-    data["prompt_base_2"] = ""
-    data["reflextion"] = ""
-    for section in iteration_list:
-        with section:
-            data = run_case(
-                data,
-                is_singleturn=data["resource"].turn_count == 1,
-                test_dialog_turn_count=st.session_state.test_dialog_turn_count
-            )
-            st.write(data)
-    st.write(data)
-
-def generate_page():
-    if st.session_state.summary is None:
-        st.write("프롬프트 생성 기반 정보가 없습니다.")
-    else:
-        section_list = st.session_state.iteration_sections
-        section_list = list(st.tabs(section_list))
-        iteration_data  = {
-            "resource" : st.session_state.summary
-        }
-        if len(st.session_state.iteration_sections) > 0 and st.session_state.generation_started:
-            run_iterations(section_list, iteration_data)
-        else:
-            st.write("아직 생성이 시작되지 않았습니다.")
 
 if __name__ == "__main__":
     init()
